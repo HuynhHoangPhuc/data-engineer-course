@@ -64,8 +64,6 @@ services:
       - namenode
       - datanode
       - mariadb
-    environment:
-      HADOOP_CONF_DIR: /etc/hadoop
     links:
       - namenode:hdfs-namenode
       - datanode:datanode
