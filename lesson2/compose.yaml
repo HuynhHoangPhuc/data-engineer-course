@@ -1,0 +1,77 @@
+services:
+  namenode:
+    build:
+      dockerfile: hadoop.Dockerfile
+    ports:
+      - "9870:9870"
+      - "8088:8088"
+    command: >
+      bash -c "hdfs namenode & yarn resourcemanager"
+    hostname: hdfs-namenode
+
+  datanode:
+    build:
+      dockerfile: hadoop.Dockerfile
+    hostname: datanode
+    depends_on:
+      - namenode
+    command: >
+      bash -c "hdfs datanode & yarn nodemanager"
+    ports:
+      - "9864"
+    links:
+      - namenode:hdfs-namenode
+
+  secondarynamenode:
+    build:
+      dockerfile: hadoop.Dockerfile
+    command: hdfs secondarynamenode
+    ports:
+      - "9868:9868"
+    links:
+      - namenode:hdfs-namenode
+
+  mariadb:
+    image: mariadb:latest
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin
+    env_file:
+      - .env
+    environment:
+      PMA_HOST: mariadb
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    ports:
+      - "8080:80"
+    depends_on:
+      - mariadb
+
+  sqoop:
+    build:
+      dockerfile: sqoop.Dockerfile
+    depends_on:
+      - namenode
+      - datanode
+      - mariadb
+    environment:
+      HADOOP_CONF_DIR: /etc/hadoop
+    links:
+      - namenode:hdfs-namenode
+      - datanode:datanode
+      - mariadb:mariadb
+    command: >
+      bash -c "tail -f /dev/null"
+
+volumes:
+  mariadb_data:
