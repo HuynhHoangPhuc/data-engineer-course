@@ -77,3 +77,20 @@ Perform analyses on the heart.csv data:
 2. Explore the effect of diabetes on heart disease.
 3. Explore the effect of hypertension on heart disease.
 4. Build a machine learning model for heart disease prediction.
+
+Data describe:
+
+- "age" - The age of the patient
+- "sex" - The gender of the patient
+- "angina" - The chest pain experienced (0: Typical Angina, 1: Atypical Angina, 2: Non-Anginal Pain, 3: Asymptomatic)
+- "systolic" - The patient's systolic blood pressure (mm Hg on admission to the hospital)
+- "cholesterol" - The patient's cholesterol measurement in mg/dl
+- "diabetes" - If the patient has diabetes (0: False, 1: True)
+- "electrocardiogram" - Resting electrocardiogram results (0: Normal, 1: ST-T Wave Abnormality, 2: Left Ventricular Hypertrophy)
+- "max_heart_rate" - The patient's maximum heart rate achieved
+- "exercise_induced_angina" - Exercise induced angina (0: No, 1: Yes)
+- "ST_depression" - ST depression induced by exercise relative to rest ('ST' relates to positions on the ECG plot)
+- "ST_slope" - The slope of the peak exercise ST segment (0: Upsloping, 1: Flatsloping, 2: Downsloping)
+- "number_of_major_vessels" - The number of major vessels (0-3)
+- "thalassemia" - A blood disorder called thalassemia (0: Normal, 1: Fixed Defect, 2: Reversible Defect)
+- "heart_disease" - Heart disease (0: No, 1: Yes)
