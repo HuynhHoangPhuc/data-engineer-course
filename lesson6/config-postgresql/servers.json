@@ -1,0 +1,15 @@
+{
+    "Servers": {
+        "1": {
+            "Group": "Servers",
+            "Name": "Docker",
+            "Host": "postgres-db",
+            "Port": 5432,
+            "MaintenanceDB": "postgres",
+            "Username": "spark_user", 
+            "Password": "spark_password",
+            "SSLMode": "prefer",
+            "Favorite": true
+        }
+    }
+}

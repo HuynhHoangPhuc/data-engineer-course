@@ -1,0 +1,103 @@
+services:
+  postgres:
+    image: postgres
+    container_name: postgres-db
+    hostname: postgres-db
+    environment:
+      POSTGRES_DB: analytics
+      POSTGRES_USER: spark_user
+      POSTGRES_PASSWORD: spark_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/18/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - spark-network
+
+  pgadmin:
+    build: ./config-postgresql
+    container_name: pgadmin-db
+    hostname: pgadmin-db
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@hcmus.edu.vn
+      PGADMIN_DEFAULT_PASSWORD: admin_password
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - spark-network
+
+  spark-master:
+    image: apache/spark
+    container_name: spark-master
+    hostname: spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./spark-apps:/opt/spark-apps
+      - ./spark-data:/opt/spark-data
+      - ./spark-events:/opt/spark/spark-events
+      - ./conf:/opt/spark/conf
+      - type: bind
+        source: ./jars/postgresql-42.7.8.jar
+        target: /opt/spark/jars/postgresql-42.7.8.jar
+    networks:
+      - spark-network
+
+  spark-worker:
+    image: apache/spark
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=4g
+    volumes:
+      - ./spark-apps:/opt/spark-apps
+      - ./spark-data:/opt/spark-data
+      - ./spark-events:/opt/spark/spark-events
+      - ./conf:/opt/spark/conf
+      - type: bind
+        source: ./jars/postgresql-42.7.8.jar
+        target: /opt/spark/jars/postgresql-42.7.8.jar
+    depends_on:
+      - spark-master
+      - postgres
+    networks:
+      - spark-network
+    deploy:
+      replicas: 2
+
+  spark-history:
+    image: apache/spark
+    container_name: spark-history
+    hostname: spark-history
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.history.HistoryServer
+    environment:
+      - SPARK_HISTORY_OPTS=-Dspark.history.fs.logDirectory=/opt/spark/spark-events -Dspark.history.ui.port=18080
+      - SPARK_NO_DAEMONIZE=true
+    ports:
+      - "18080:18080"
+    volumes:
+      - ./spark-events:/opt/spark/spark-events
+    networks:
+      - spark-network
+    depends_on:
+      - spark-master
+    restart: unless-stopped
+
+networks:
+  spark-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  pgadmin_data:
