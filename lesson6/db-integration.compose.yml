@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres
+    platform: linux/amd64
     container_name: postgres-db
     hostname: postgres-db
     environment:
@@ -17,6 +18,7 @@ services:
 
   pgadmin:
     build: ./config-postgresql
+    platform: linux/amd64
     container_name: pgadmin-db
     hostname: pgadmin-db
     environment:
@@ -33,6 +35,7 @@ services:
 
   spark-master:
     image: apache/spark
+    platform: linux/amd64
     container_name: spark-master
     hostname: spark-master
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
@@ -56,6 +59,7 @@ services:
 
   spark-worker:
     image: apache/spark
+    platform: linux/amd64
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
     environment:
       - SPARK_WORKER_CORES=2
@@ -78,6 +82,7 @@ services:
 
   spark-history:
     image: apache/spark
+    platform: linux/amd64
     container_name: spark-history
     hostname: spark-history
     command: /opt/spark/bin/spark-class org.apache.spark.deploy.history.HistoryServer
@@ -93,6 +98,22 @@ services:
     depends_on:
       - spark-master
     restart: unless-stopped
+
+  app:
+    build: ./app
+    platform: linux/amd64
+    container_name: spark-app
+    hostname: spark-app
+    volumes:
+      - ./app:/app
+      - ./jars:/app/jars
+    ports:
+      - "8888:8888"
+    depends_on:
+      - spark-master
+      - postgres
+    networks:
+      - spark-network
 
 networks:
   spark-network:
