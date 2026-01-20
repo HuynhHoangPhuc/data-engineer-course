@@ -1,0 +1,164 @@
+services:
+  # =============================================================================
+  # DATA SOURCE - PostgreSQL with Pagila Database
+  # =============================================================================
+  postgres:
+    image: postgres:16
+    hostname: postgres
+    environment:
+      POSTGRES_DB: pagila
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    command:
+      - "postgres"
+      - "-c"
+      - "wal_level=logical"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pagila"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bigdata-network
+
+  # =============================================================================
+  # DATA LAKE - MinIO (S3-compatible Object Storage)
+  # =============================================================================
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    hostname: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - bigdata-network
+
+  # MinIO Client - Create buckets on startup
+  minio-init:
+    image: minio/mc:latest
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set myminio http://minio:9000 minioadmin minioadmin;
+        mc mb myminio/bronze --ignore-existing;
+        mc mb myminio/silver --ignore-existing;
+        mc mb myminio/gold --ignore-existing;
+        mc mb myminio/checkpoints --ignore-existing;
+        echo 'Buckets created successfully!';
+        exit 0;
+      "
+    networks:
+      - bigdata-network
+
+  # =============================================================================
+  # BATCH PROCESSING - Apache Spark (same as lesson 5/6)
+  # =============================================================================
+  spark-master:
+    image: apache/spark
+    platform: linux/amd64
+    container_name: spark-master
+    hostname: spark-master
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./spark-jobs:/opt/spark-jobs
+      - ./spark-data:/opt/spark-data
+      - ./configs/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+      - ./jars:/opt/spark/jars/extra
+    networks:
+      - bigdata-network
+
+  spark-worker:
+    image: apache/spark
+    platform: linux/amd64
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_MEMORY=4g
+    volumes:
+      - ./spark-jobs:/opt/spark-jobs
+      - ./spark-data:/opt/spark-data
+      - ./configs/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+      - ./jars:/opt/spark/jars/extra
+    depends_on:
+      - spark-master
+      - postgres
+    networks:
+      - bigdata-network
+    deploy:
+      replicas: 2
+
+  # =============================================================================
+  # SQL ANALYTICS - Trino
+  # =============================================================================
+  trino:
+    image: trinodb/trino:latest
+    container_name: trino
+    hostname: trino
+    ports:
+      - "8090:8080"
+    volumes:
+      - ./configs/trino:/etc/trino
+    networks:
+      - bigdata-network
+
+  # =============================================================================
+  # EXPLORATION - JupyterLab
+  # =============================================================================
+  jupyter:
+    image: jupyter/pyspark-notebook:latest
+    container_name: jupyter
+    hostname: jupyter
+    ports:
+      - "8888:8888"
+    user: root
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=bigdata
+      - PYSPARK_PYTHON=python3
+      - PYSPARK_DRIVER_PYTHON=python3
+      - NB_USER=phuc
+      - CHOWN_HOME=yes
+    volumes:
+      - ./notebooks:/home/phuc/notebooks
+      - ./spark-jobs:/home/phuc/spark-jobs
+      - ./spark-data:/home/phuc/spark-data
+    networks:
+      - bigdata-network
+
+# =============================================================================
+# NETWORKS & VOLUMES
+# =============================================================================
+networks:
+  bigdata-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  minio_data:

@@ -1,0 +1,27 @@
+# Dependencies
+jars/
+plugins/
+.venv/
+__pycache__/
+*.pyc
+
+# Data
+spark-data/
+*.parquet
+*.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Docker
+docker-compose.override.yml
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
